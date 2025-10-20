@@ -7,17 +7,17 @@ env = gym.make("GridWorld-v0")
 env.verbose = True
 _ =env.reset()
 
-EPISODES = 10000
-#a1: para conseguir buen resultado en qlearning map2 aumente steps a 1000
-MAX_STEPS = 1000
+EPISODES = 10000 #10000 por defecto
+#a1: para conseguir buen resultado en qlearning mapa 2 aumente steps a 1000
+MAX_STEPS = 100 #100 por defecto
 
 #a2: para conseguir 2q uso 0.5
-LEARNING_RATE = 0.2 #0.2  
-#a1 para conseguir buen resultado en sarsa map2 aumente gamma a .99
-GAMMA = 0.99 
+LEARNING_RATE = 0.2 #0.2 por defecto
+#a1 para conseguir buen resultado en sarsa mapa 2 aumente gamma a .99
+GAMMA = 0.99
 
-epsilon = 0.7
-lambda_ = 0.7
+epsilon = 1 #1 por defecto
+lambda_ = 0.5
 
 RESULTS_DIR = "./resultados"
 
@@ -43,7 +43,7 @@ def save_q_to_csv(Q, filepath):
 
 def qlearning(env, epsilon):
     ensure_dir(RESULTS_DIR)
-    rewards_csv = os.path.join(RESULTS_DIR, "rewards_por_episodios_map2_qlearning.csv")
+    rewards_csv = os.path.join(RESULTS_DIR, "r_map2_qlearning.csv")
     # abrir en modo write para empezar limpio cada corrida
     with open(rewards_csv, "w", newline="") as fcsv:
         writer = csv.writer(fcsv)
@@ -100,7 +100,7 @@ def double_qlearning(env, epsilon):
     ensure_dir(RESULTS_DIR)
 
     # CSV de recompensas por episodio
-    rewards_csv = os.path.join(RESULTS_DIR, "rewards_por_episodios_map2_double_qlearning.csv")
+    rewards_csv = os.path.join(RESULTS_DIR, "r_map2_double_qlearning.csv")
     with open(rewards_csv, "w", newline="") as fcsv:
         writer = csv.writer(fcsv)
         writer.writerow(["episode", "rewards_epi", "epsilon"])  # header
@@ -171,7 +171,7 @@ def double_qlearning(env, epsilon):
 
 def sarsa(env, epsilon):
     ensure_dir(RESULTS_DIR)
-    rewards_csv = os.path.join(RESULTS_DIR, "rewards_por_episodios_map2_sarsa.csv")
+    rewards_csv = os.path.join(RESULTS_DIR, "r_map2_sarsa.csv")
     with open(rewards_csv, "w", newline="") as fcsv:
         writer = csv.writer(fcsv)
         writer.writerow(["episode", "rewards_epi", "epsilon"])  # header
@@ -261,7 +261,7 @@ def playgames(env, Q, num_games, render = True):
 
 def sarsa_lambda(env, epsilon, lambda_):
     ensure_dir(RESULTS_DIR)
-    rewards_csv = os.path.join(RESULTS_DIR, "rewards_por_episodios_map1_sarsa_lambda.csv")
+    rewards_csv = os.path.join(RESULTS_DIR, "r_map2_sarsa_lambda.csv")
     with open(rewards_csv, "w", newline="") as fcsv:
         writer = csv.writer(fcsv)
         writer.writerow(["episode", "rewards_epi", "epsilon"])
@@ -331,12 +331,12 @@ def sarsa_lambda(env, epsilon, lambda_):
             writer.writerow([episode, rewards_epi, epsilon])
 
     print(Q)
-    save_q_to_csv(Q, os.path.join(RESULTS_DIR, "q_map1_sarsa_lambda.csv"))
+    save_q_to_csv(Q, os.path.join(RESULTS_DIR, "q_map2_sarsa_lambda.csv"))
     return Q
 
 def q_lambda(env, epsilon, lambda_):
     ensure_dir(RESULTS_DIR)
-    rewards_csv = os.path.join(RESULTS_DIR, "rewards_por_episodios_map1_q_lambda.csv")
+    rewards_csv = os.path.join(RESULTS_DIR, "r_map2_q_lambda.csv")
     with open(rewards_csv, "w", newline="") as fcsv:
         writer = csv.writer(fcsv)
         writer.writerow(["episode", "rewards_epi", "epsilon"])
@@ -412,7 +412,7 @@ def q_lambda(env, epsilon, lambda_):
             writer.writerow([episode, rewards_epi, epsilon])
 
     print(Q)
-    save_q_to_csv(Q, os.path.join(RESULTS_DIR, "q_map1_q_lambda.csv"))
+    save_q_to_csv(Q, os.path.join(RESULTS_DIR, "q_map2_q_lambda.csv"))
     return Q
 
 
