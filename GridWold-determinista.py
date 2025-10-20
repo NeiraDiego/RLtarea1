@@ -14,7 +14,7 @@ LEFT = 3
 class GridWorld(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, file_name = "map2.txt", fail_rate = 0.0, terminal_reward = 2.0, move_reward = 0.0, bump_reward = -0.5, bomb_reward = -1.5, p_exito=0.70, p_izq=0.15, p_der=0.15):
+    def __init__(self, file_name = "map2.txt", fail_rate = 0.0, terminal_reward = 2.0, move_reward = 0.0, bump_reward = -0.5, bomb_reward = -1.5):
         self.viewer = SimpleImageViewer()
         self.n = None
         self.m = None
@@ -22,9 +22,6 @@ class GridWorld(gym.Env):
         self.walls = []
         self.goals = []
         self.start = None
-        self.p_exito = p_exito
-        self.p_izq = p_izq
-        self.p_der = p_der
         this_file_path = os.path.dirname(os.path.realpath(__file__))
         file_name = os.path.join(this_file_path, file_name) 
         with open(file_name, "r") as f:
@@ -59,24 +56,12 @@ class GridWorld(gym.Env):
         self.observation_space = spaces.Discrete(self.n_states)
         self.done = False
         
-    def _stochastic_action(self, intended_action):
-        r = np.random.rand()
-        if r < self.p_exito:
-            return intended_action
-        elif r < (self.p_exito + self.p_izq):
-            # izquierda relativa: -1 (módulo 4)
-            return (intended_action - 1) % 4
-        else:
-            # derecha relativa: +1 (módulo 4)
-            return (intended_action + 1) % 4
-
     def step(self, action):
         assert self.action_space.contains(action)
         if self.state in self.goals or np.random.rand() < self.fail_rate:
             return self.state, 0.0, self.done, None
         else:
-            actual_action = self._stochastic_action(action)
-            new_state = self.take_action(actual_action)
+            new_state = self.take_action(action)
             reward = self.get_reward(new_state)
             self.state = new_state
             return self.state, reward, self.done, None

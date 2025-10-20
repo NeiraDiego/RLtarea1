@@ -16,7 +16,8 @@ LEARNING_RATE = 0.2 #0.2
 #a1 para conseguir buen resultado en sarsa map2 aumente gamma a .99
 GAMMA = 0.99 
 
-epsilon = 0.05
+epsilon = 0.7
+lambda_ = 0.7
 
 RESULTS_DIR = "./resultados"
 
@@ -99,7 +100,7 @@ def double_qlearning(env, epsilon):
     ensure_dir(RESULTS_DIR)
 
     # CSV de recompensas por episodio
-    rewards_csv = os.path.join(RESULTS_DIR, "rewards_por_episodios_map1_double_qlearning.csv")
+    rewards_csv = os.path.join(RESULTS_DIR, "rewards_por_episodios_map2_double_qlearning.csv")
     with open(rewards_csv, "w", newline="") as fcsv:
         writer = csv.writer(fcsv)
         writer.writerow(["episode", "rewards_epi", "epsilon"])  # header
@@ -162,7 +163,7 @@ def double_qlearning(env, epsilon):
     print(Q_comb)
 
     # Guarda la Q combinada en CSV
-    q_csv = os.path.join(RESULTS_DIR, "q_map1_double_qlearning.csv")
+    q_csv = os.path.join(RESULTS_DIR, "q_map2_double_qlearning.csv")
     save_q_to_csv(Q_comb, q_csv)
 
     return Q_comb
@@ -258,11 +259,169 @@ def playgames(env, Q, num_games, render = True):
     env.close()
     print("Victorias: ", wins)
 
+def sarsa_lambda(env, epsilon, lambda_):
+    ensure_dir(RESULTS_DIR)
+    rewards_csv = os.path.join(RESULTS_DIR, "rewards_por_episodios_map1_sarsa_lambda.csv")
+    with open(rewards_csv, "w", newline="") as fcsv:
+        writer = csv.writer(fcsv)
+        writer.writerow(["episode", "rewards_epi", "epsilon"])
 
-Q = sarsa(env, epsilon)
+        STATES, ACTIONS = env.n_states, env.n_actions
+        Q = np.zeros((STATES, ACTIONS), dtype=float)
+
+        for episode in range(EPISODES):
+            E = np.zeros_like(Q)  # eligibility traces
+            rewards_epi = 0.0
+            state = env.reset()
+
+            # elegir acción inicial (ε-greedy)
+            if np.random.uniform(0, 1) < epsilon:
+                action = env.action_space.sample()
+            else:
+                action = np.argmax(Q[state, :])
+
+            for actual_step in range(MAX_STEPS):
+                next_state, reward, done, _ = env.step(action)
+                rewards_epi += reward
+
+                # acción siguiente (on-policy)
+                if not done:
+                    if np.random.uniform(0, 1) < epsilon:
+                        next_action = env.action_space.sample()
+                    else:
+                        next_action = np.argmax(Q[next_state, :])
+
+                # TD error
+                if done:
+                    td_target = reward
+                else:
+                    td_target = reward + GAMMA * Q[next_state, next_action]
+                delta = td_target - Q[state, action]
+
+                # replacing trace
+                E[state, action] = 1.0
+
+                # actualización para todas las (s,a)
+                Q += LEARNING_RATE * delta * E
+                # decaimiento de trazas
+                if done:
+                    E[:] = 0.0
+                else:
+                    E *= GAMMA * lambda_
+
+                # mover estado/acción
+                state = next_state
+                if not done:
+                    action = next_action
+
+                # mantener tu impresión/decaimiento de epsilon
+                if (MAX_STEPS - 2) < actual_step:
+                    print(f"Episode {episode} rewards: {rewards_epi}")
+                    print(f"Value of epsilon: {epsilon}")
+                    if epsilon > 0.1:
+                        epsilon -= 0.0001
+
+                if done:
+                    print(f"Episode {episode} rewards: {rewards_epi}")
+                    print(f"Value of epsilon: {epsilon}")
+                    if epsilon > 0.1:
+                        epsilon -= 0.0001
+                    break
+
+            writer.writerow([episode, rewards_epi, epsilon])
+
+    print(Q)
+    save_q_to_csv(Q, os.path.join(RESULTS_DIR, "q_map1_sarsa_lambda.csv"))
+    return Q
+
+def q_lambda(env, epsilon, lambda_):
+    ensure_dir(RESULTS_DIR)
+    rewards_csv = os.path.join(RESULTS_DIR, "rewards_por_episodios_map1_q_lambda.csv")
+    with open(rewards_csv, "w", newline="") as fcsv:
+        writer = csv.writer(fcsv)
+        writer.writerow(["episode", "rewards_epi", "epsilon"])
+
+        STATES, ACTIONS = env.n_states, env.n_actions
+        Q = np.zeros((STATES, ACTIONS), dtype=float)
+
+        for episode in range(EPISODES):
+            E = np.zeros_like(Q)  # eligibility traces
+            rewards_epi = 0.0
+            state = env.reset()
+
+            for actual_step in range(MAX_STEPS):
+                # acción ε-greedy para comportarse (pero estimamos con greedy)
+                if np.random.uniform(0, 1) < epsilon:
+                    action = env.action_space.sample()
+                else:
+                    action = np.argmax(Q[state, :])
+
+                next_state, reward, done, _ = env.step(action)
+                rewards_epi += reward
+
+                # objetivo off-policy (greedy en next_state)
+                if done:
+                    td_target = reward
+                    greedy_next = None
+                else:
+                    greedy_next = np.argmax(Q[next_state, :])
+                    td_target = reward + GAMMA * Q[next_state, greedy_next]
+
+                delta = td_target - Q[state, action]
+
+                # replacing trace
+                E[state, action] = 1.0
+
+                # actualización
+                Q += LEARNING_RATE * delta * E
+
+                # Watkins: si la acción que REALMENTE se tomó en next_state no es greedy, E=0
+                if done:
+                    E[:] = 0.0
+                else:
+                    # ¿la próxima acción de comportamiento sería greedy?
+                    # (miramos lo que haríamos ε-greedy para la siguiente decisión)
+                    # Si epsilon > 0, podría no ser greedy; la regla formal mira la acción tomada.
+                    # Para aproximar en este esquema paso a paso:
+                    # - si la política de comportamiento es greedy (prob. 1-ε) y
+                    #   la acción elegida es el argmax => mantenemos E; de lo contrario, anulamos.
+                    if np.random.uniform(0, 1) < epsilon:
+                        # no-greedy -> anular E
+                        E[:] = 0.0
+                    else:
+                        # se tomaría la greedy: mantener y decaer
+                        E *= GAMMA * lambda_
+
+                # mover
+                state = next_state
+
+                # mantener tu impresión/decaimiento de epsilon
+                if (MAX_STEPS - 2) < actual_step:
+                    print(f"Episode {episode} rewards: {rewards_epi}")
+                    print(f"Value of epsilon: {epsilon}")
+                    if epsilon > 0.1:
+                        epsilon -= 0.0001
+
+                if done:
+                    print(f"Episode {episode} rewards: {rewards_epi}")
+                    print(f"Value of epsilon: {epsilon}")
+                    if epsilon > 0.1:
+                        epsilon -= 0.0001
+                    break
+
+            writer.writerow([episode, rewards_epi, epsilon])
+
+    print(Q)
+    save_q_to_csv(Q, os.path.join(RESULTS_DIR, "q_map1_q_lambda.csv"))
+    return Q
+
+
+#Q = sarsa(env, epsilon)
 #Q = qlearning(env, epsilon)
 #Q = double_qlearning(env, epsilon)
-playgames(env, Q, 100, True)
+#Q = sarsa_lambda(env, epsilon=epsilon, lambda_=lambda_)
+Q = q_lambda(env,     epsilon=epsilon, lambda_=lambda_)
+playgames(env, Q, 10, True)
 env.close()
 
 
